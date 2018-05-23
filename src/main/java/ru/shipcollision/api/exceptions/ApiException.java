@@ -15,7 +15,7 @@ public class ApiException extends RuntimeException {
         super(errorMessage);
     }
 
-    ApiException(ApiException error) {
+    public ApiException(Throwable error) {
         super(error);
     }
 }
