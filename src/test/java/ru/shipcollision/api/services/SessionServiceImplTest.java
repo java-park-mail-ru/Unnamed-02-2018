@@ -81,7 +81,10 @@ class SessionServiceImplTest {
                 ForbiddenException.class,
                 () -> sessionService.getCurrentUser(session)
         );
-        Assertions.assertFalse(Arrays.asList(session.getValueNames()).contains(SessionService.COOKIE_NAME));
+        Assertions.assertThrows(
+                IllegalStateException.class,
+                () -> session.getValueNames()
+        );
     }
 
     @Test
@@ -99,8 +102,8 @@ class SessionServiceImplTest {
     void testCanNotCloseClosedSession() {
         Mockito.when(userDAO.findById(Mockito.eq(correctUser.id)))
                 .thenThrow(NotFoundException.class);
-
-        Assertions.assertThrows(ForbiddenException.class, () -> sessionService.closeSession(session));
+        sessionService.closeSession(session);
+        Assertions.assertTrue(session.isInvalid());
     }
 
     @Test
@@ -108,11 +111,7 @@ class SessionServiceImplTest {
     void testCannotCloseSessionForUnexistingUser() {
         Mockito.when(userDAO.findById(Mockito.eq(correctUser.id)))
                 .thenThrow(NotFoundException.class);
-
-        Assertions.assertThrows(
-                ForbiddenException.class,
-                () -> sessionService.closeSession(session)
-        );
-        Assertions.assertFalse(Arrays.asList(session.getValueNames()).contains(SessionService.COOKIE_NAME));
+        sessionService.closeSession(session);
+        Assertions.assertTrue(session.isInvalid());
     }
 }

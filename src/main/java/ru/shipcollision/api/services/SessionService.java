@@ -1,12 +1,14 @@
 package ru.shipcollision.api.services;
 
 import org.springframework.stereotype.Service;
+import org.springframework.web.socket.WebSocketSession;
 import ru.shipcollision.api.dao.UserDAO;
 import ru.shipcollision.api.exceptions.ForbiddenException;
 import ru.shipcollision.api.exceptions.NotFoundException;
 import ru.shipcollision.api.models.User;
 
 import javax.servlet.http.HttpSession;
+import java.util.Map;
 
 /**
  * Сервис для работы с сессиями.
@@ -31,17 +33,31 @@ public class SessionService {
      * @return Проверяет, установлена ли кука.
      */
     private User getUserFromSession(HttpSession session) {
-        final Object userId = session.getAttribute(COOKIE_NAME);
+        try {
+            final Object userId = session.getAttribute(COOKIE_NAME);
 
-        if (userId == null) {
+            if (userId == null) {
+                throw new ForbiddenException();
+            }
+
+            try {
+                return userDAO.findById((Long) userId);
+            } catch (NotFoundException e) {
+                session.invalidate();
+                throw new ForbiddenException(e);
+            }
+        } catch (IllegalStateException e) {
+            //noinspection ThrowInsideCatchBlockWhichIgnoresCaughtException
             throw new ForbiddenException();
         }
+    }
 
-        try {
-            return userDAO.findById((Long) userId);
-        } catch (NotFoundException e) {
-            session.removeAttribute(COOKIE_NAME);
-            throw new ForbiddenException(e);
+    public User wsGetUserFromSession(WebSocketSession webSocketSession) {
+        final Map<String, Object> attributes = webSocketSession.getAttributes();
+        if (attributes.containsKey(COOKIE_NAME)) {
+            return userDAO.findById((Long) attributes.get(COOKIE_NAME));
+        } else {
+            throw new NotFoundException("Пользователь не найден");
         }
     }
 
@@ -67,8 +83,6 @@ public class SessionService {
      * Закрывает сессию для текущего пользователя.
      */
     public void closeSession(HttpSession session) {
-        if (getUserFromSession(session) != null) {
-            session.invalidate();
-        }
+        session.invalidate();
     }
 }
